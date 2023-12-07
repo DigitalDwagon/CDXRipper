@@ -1,5 +1,7 @@
 package dev.digitaldragon;
 
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
 import com.github.luben.zstd.ZstdInputStream;
 import org.json.JSONObject;
 
@@ -18,22 +20,37 @@ import java.util.concurrent.Executors;
 import java.util.zip.GZIPInputStream;
 
 public class Main {
-    private static File outputFile = new File("output.txt");
-    private static final ExecutorService executor = Executors.newFixedThreadPool(1);
-    private static CDXType cdxType = CDXType.INTERNETARCHIVE;
-    public static void main(String[] args) {
+    //private static File outputFile = new File("output.txt");
+    private static File outputFile = null;
+    private static final ExecutorService executor = Executors.newFixedThreadPool(3);
+     public static void main(String[] args) throws InterruptedException {
         /*if (args.length != 1) {
             System.err.println("Usage: java GzipReader <url>");
             System.exit(1);
         }
 
-        String url = args[0];*/
+        String url = args[0];
+        */
+        Args parsed = new Args();
+         JCommander.newBuilder()
+                 .addObject(parsed)
+                 .build()
+                 //.parse(new String[]{"links.txt", "-o", "output.txt"});
+                 .parse(args);
+
+
+        outputFile = new File(parsed.getOutputFile());
+
+
         //String url = "https://data.commoncrawl.org/cc-index/collections/CC-MAIN-2023-40/indexes/cdx-00000.gz";
 
         try {
-            //List<String> urls = Files.readAllLines(Paths.get(args[0]));
-            List<String> urls = new ArrayList<>();
+            List<String> urls = Files.readAllLines(Paths.get(parsed.getUrlList()));
+
+            /*List<String> urls = new ArrayList<>();
             urls.add("https://archive.org/download/archiveteam_archivebot_go_20231121172054_289d7ef6/27.tumblr.com-inf-20230809-001840-cywaz-03288.warc.os.cdx.gz");
+            //*/
+
             for (String url : urls) {
                 System.out.println("Downloading " + url);
                 getInputStream(url);
@@ -42,8 +59,10 @@ public class Main {
         } catch (IOException e) {
             e.printStackTrace();
         }
+         System.out.println(outputFile.getAbsolutePath());
+        System.out.println("Finished downloading data! Completing pending writes...");
         executor.shutdown();
-        System.out.println("Bye!");
+
     }
 
     private static void getInputStream(String urlString) throws IOException {
@@ -57,11 +76,17 @@ public class Main {
         } else {
             inputStream = urlConnection.getInputStream();
         }
+        CDXType cdxType;
+        if (urlString.contains("data.commoncrawl.org")) {
+            cdxType = CDXType.COMMONCRAWL;
+        } else {
+            cdxType = CDXType.INTERNETARCHIVE;
+        }
 
-        downloadCdxContent(inputStream);
+        downloadCdxContent(inputStream, cdxType);
     }
 
-    private static void downloadCdxContent(InputStream inputStream) throws IOException {
+    private static void downloadCdxContent(InputStream inputStream, CDXType cdxType) throws IOException {
         try (InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
              BufferedReader reader = new BufferedReader(inputStreamReader)) {
 
@@ -71,16 +96,16 @@ public class Main {
                 bytesDownloaded += line.getBytes(StandardCharsets.UTF_8).length; // Count downloaded bytes
                 System.out.printf("Download progress: %s bytes (after decompression)\r", bytesDownloaded); // Show progress
 
-                parseCdxLine(line);
+                parseCdxLine(line, cdxType);
             }
         }
     }
 
     private static final List<String> lines = new ArrayList<>();
     private static List<String> header = null;
-    private static void parseCdxLine(String line) {
+    private static void parseCdxLine(String line, CDXType cdxType) {
         if (line.startsWith(" CDX ")) {
-            System.out.println("aaa!");
+            //System.out.println("aaa!");
             String[] split = line.replace("CDX", "").trim().split(" ");
             header = Arrays.asList(split);
         } else {
@@ -116,6 +141,7 @@ public class Main {
                     writeLines.add(jsonObject.getString("url"));
                 }
             }
+
             writeLinesToFile(outputFile, writeLines);
         });
         lines.clear();

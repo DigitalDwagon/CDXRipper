@@ -1,6 +1,7 @@
 plugins {
     id("java")
     id("com.github.johnrengelman.shadow") version "7.1.2"
+    id("io.freefair.lombok") version "8.0.1"
 }
 
 group = "dev.digitaldragon"
@@ -19,6 +20,10 @@ dependencies {
     //used to decompress zstd streams
     // https://mvnrepository.com/artifact/com.github.luben/zstd-jni
     implementation("com.github.luben:zstd-jni:1.5.5-5")
+
+    // https://mvnrepository.com/artifact/com.beust/jcommander
+    implementation("com.beust:jcommander:1.82")
+
 }
 
 tasks.test {
